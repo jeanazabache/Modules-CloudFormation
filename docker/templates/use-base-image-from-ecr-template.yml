@@ -1,0 +1,46 @@
+# azure-pipelines.yml
+
+trigger:
+- main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  awsRegion: 'us-east-1'
+  awsAccountId: '<aws_account_id>'
+  repositoryName: 'my-nodejs-base'
+  imageTag: '1.0.0'
+  imageName: '$(awsAccountId).dkr.ecr.$(awsRegion).amazonaws.com/$(repositoryName):$(imageTag)'
+
+steps:
+# Step 1: Checkout the code
+- task: Checkout@1
+
+# Step 2: Use AWS credentials
+- task: UseAWS@1
+  inputs:
+    awsCredentials: 'aws-connection'
+    regionName: '$(awsRegion)'
+
+# Step 3: Login to AWS ECR
+- script: |
+    aws ecr get-login-password --region $(awsRegion) | docker login --username AWS --password-stdin $(awsAccountId).dkr.ecr.$(awsRegion).amazonaws.com
+  displayName: 'Login to Amazon ECR'
+
+# Step 4: Pull Docker image from ECR
+- script: |
+    docker pull $(imageName)
+  displayName: 'Pull Docker Image'
+
+# Step 5: Run Docker container
+- task: Docker@2
+  inputs:
+    command: 'run'
+    imageName: '$(imageName)'
+    containerName: 'my-app-container'
+    detach: true
+    ports: '3000:3000'
+
+# Step 6: Additional steps (build, test, deploy your application)
+# Add steps here as needed for your specific application

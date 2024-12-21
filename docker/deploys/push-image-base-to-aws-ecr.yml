@@ -1,0 +1,46 @@
+# push-image-base-to-aws-ecr.yml
+
+trigger:
+- main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  awsRegion: 'us-east-1'
+  awsAccountId: '<aws_account_id>'
+  repositoryName: 'my-nodejs-base'
+  imageTag: '1.0.0'
+  imageName: '$(awsAccountId).dkr.ecr.$(awsRegion).amazonaws.com/$(repositoryName):$(imageTag)'
+
+steps:
+# Step 1: Checkout the code
+- task: Checkout@1
+
+# Step 2: Use AWS credentials (assuming you've set up an AWS service connection)
+- task: UseAWS@1
+  inputs:
+    awsCredentials: '<aws_service_connection>'
+    regionName: '$(awsRegion)'
+
+# Step 3: Build Docker image
+- task: Docker@2
+  inputs:
+    command: 'build'
+    dockerfile: 'docker/dockerFile_Node'
+    tags: '$(repositoryName):$(imageTag)'
+
+# Step 4: Login to AWS ECR
+- script: |
+    aws ecr get-login-password --region $(awsRegion) | docker login --username AWS --password-stdin $(awsAccountId).dkr.ecr.$(awsRegion).amazonaws.com
+  displayName: 'Login to Amazon ECR'
+
+# Step 5: Tag Docker image
+- script: |
+    docker tag $(repositoryName):$(imageTag) $(imageName)
+  displayName: 'Tag Docker Image'
+
+# Step 6: Push Docker image to ECR
+- script: |
+    docker push $(imageName)
+  displayName: 'Push Docker Image to ECR'

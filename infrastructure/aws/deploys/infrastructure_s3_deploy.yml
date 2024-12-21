@@ -1,0 +1,30 @@
+parameters:
+  targetFolder: ''
+  awsCredentials:
+  fileCloudformation: 
+  regionName: 
+  stackNameCF:
+  templateParameters:
+  roleARN:
+  tags:
+  s3BucketDeploy:
+  capabilityAutoExpand: false
+steps:
+
+- task: CloudFormationCreateOrUpdateStack@1
+  displayName: 'Create / Update Cloudformation'
+  inputs:
+    awsCredentials: ${{ parameters.awsCredentials }}
+    regionName: '${{ parameters.regionName }}'
+    stackName: '${{ parameters.stackNameCF }}'
+    templateSource: 's3'
+    s3BucketName: '${{ parameters.s3BucketDeploy }}'
+    s3ObjectKey: '${{ parameters.targetFolder }}/${{ parameters.fileCloudformation }}'
+    logRequest: true
+    logResponse: true
+    captureStackOutputs: asJSON
+    templateParametersSource: 'inline'
+    templateParameters: ${{ parameters.templateParameters }}
+    roleARN: '${{ parameters.roleARN }}'
+    tags: ${{ parameters.tags }}
+    capabilityAutoExpand: ${{ parameters.capabilityAutoExpand }}

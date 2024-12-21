@@ -1,0 +1,67 @@
+parameters:
+  sonarOrganization: 'utp'
+  sonarConnection: ''
+  sonarProjectKey: ''
+  sonarExclusions: ''
+  installCommand: ''
+  testsCommand: ''
+  sonarSources: ''
+  sonarBinaries: ''
+  folderSonarTest: 'sonar.tests=src/__test__'
+  sonarTestInclusions: 'sonar.test.inclusions=**/__test__/**/*'
+  useJUnitReports: 'false'
+  xmlReportPaths: '$(System.DefaultWorkingDirectory)/application/applications/build/reports/jacoco/testCodeCoverageReport/testCodeCoverageReport.xml'
+  useJava17: false
+  # jdkArchitectureOption: 'x64'
+steps:
+  - ${{ if eq(parameters['useJava17'], 'true') }}:
+    - script: |
+        sudo apt-get update
+        sudo apt-get install openjdk-17-jdk -y
+        sudo update-alternatives --install /usr/bin/java java /usr/lib/jvm/java-17-openjdk-amd64/bin/java 1
+        sudo update-alternatives --set java /usr/lib/jvm/java-17-openjdk-amd64/bin/java
+        sudo update-alternatives --install /usr/bin/javac javac /usr/lib/jvm/java-17-openjdk-amd64/bin/javac 1
+        sudo update-alternatives --set javac /usr/lib/jvm/java-17-openjdk-amd64/bin/javac
+        export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+        java -version
+        javac -version
+      displayName: 'Instalar y verificar Java 17'
+
+  - script: ${{ parameters.testsCommand }}
+    displayName: 'Run tests'
+    continueOnError: true
+
+  - task: SonarCloudPrepare@2
+    inputs:
+      SonarCloud: ${{ parameters.sonarConnection }}
+      organization: ${{ parameters.sonarOrganization }}
+      scannerMode: 'CLI'
+      configMode: 'manual'
+      cliProjectKey: ${{ parameters.sonarProjectKey }}
+      cliProjectName: ${{ parameters.sonarProjectKey }}
+      cliSources: '.'
+      extraProperties: |
+            sonar.sourceEncoding=UTF-8
+            sonar.language=java
+            sonar.sources=${{ parameters.sonarSources }}
+            # sonar.junit.reportPaths=target/surefire-reports
+            sonar.java.coveragePlugin=jacoco
+            # sonar.coverage.jacoco.xmlReportPaths=$(System.DefaultWorkingDirectory)/target/site/jacoco/jacoco.xml
+            sonar.coverage.jacoco.xmlReportPaths=${{parameters.xmlReportPaths}}
+            #sonar.coverage.jacoco.xmlReportPaths=$(System.DefaultWorkingDirectory)/application/applications/build/reports/jacoco/testCodeCoverageReport/testCodeCoverageReport.xml
+
+            #  sonar.java.binaries=$(System.DefaultWorkingDirectory)/target/classes
+            sonar.java.binaries=${{ parameters.sonarBinaries }}
+            ${{ parameters.folderSonarTest }}
+            ${{ parameters.sonarTestInclusions }}
+            ${{ parameters.sonarExclusions }}
+            # Incluir sonar.junit.reportPaths solo si useJUnitReports es true
+            $[ if(parameters.useJUnitReports == 'true') ]: sonar.junit.reportPaths=target/surefire-reports
+
+  - task: SonarCloudAnalyze@2
+    displayName: 'Run Code Analysis'
+
+  - task: SonarCloudPublish@2
+    displayName: 'Publish Quality Gate Result'
+    inputs:
+          pollingTimeoutSec: '300'

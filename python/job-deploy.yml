@@ -1,0 +1,92 @@
+parameters:
+  jobEnvironment:
+  preTaskIsEnabled: false
+  preTask:
+    script: echo "-"
+    displayName: '-' 
+  enabledCreateECR: false
+  commandCreateECR: '' 
+  branch: ''
+  awsCredentials:
+  zipDeployPrefix: ''
+  zipBuildPrefix: ''
+ 
+  dockerLoginECR: ''
+  dockerBuildECR: ''
+  dockerTagECR : ''
+  dockerPushECR : ''
+  commandUpdateECS: ''
+  #Cloudformation
+  enabledCloudformation: false
+  fileCloudFormation: ''
+  stackNameCF: ''
+  regionName:
+  templateParameters:
+  roleArn:
+  tags:
+  updateECS: true
+  #Azure
+  azureSubscription:
+  keyVaultName:
+  #Email
+  emailEnabled: false
+  emailTo:
+  emailCC:
+  emailBCC:
+  emailFrom:
+  emailTitle:
+  #Tag
+  tagEnabled: false
+  tagRepository: none
+  tagName: 
+jobs:
+  - deployment: Deploy${{ parameters.jobEnvironment }}
+    environment: ${{parameters.jobEnvironment}}
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - download: none
+          - ${{ if eq(parameters['preTaskIsEnabled'], 'true') }}:
+            - ${{ parameters.preTask }}
+          - template: deploy.yml
+            parameters:
+              branch: ${{ parameters.branch }}
+              awsCredentials: ${{ parameters.awsCredentials }}
+              zipDeployPrefix: ${{ parameters.zipDeployPrefix }}
+              zipBuildPrefix: ${{ parameters.zipBuildPrefix }}
+              enabledCreateECR: ${{ parameters.enabledCreateECR }}
+              commandCreateECR: ${{ parameters.commandCreateECR }}
+              dockerLoginECR: ${{ parameters.dockerLoginECR }}
+              dockerBuildECR: ${{ parameters.dockerBuildECR }}
+              dockerTagECR: ${{ parameters.dockerTagECR }}
+              dockerPushECR: ${{ parameters.dockerPushECR }}
+              commandUpdateECS: ${{ parameters.commandUpdateECS }}
+              #Cloudformation
+              enabledCloudformation: ${{ parameters.enabledCloudformation }}
+              fileCloudFormation: ${{ parameters.fileCloudFormation }}
+              stackNameCF: ${{ parameters.stackNameCF }}
+              regionName: ${{ parameters.regionName }}
+              templateParameters: ${{ parameters.templateParameters }}
+              roleArn: ${{ parameters.roleArn }}
+              tags: ${{ parameters.tags }}
+              updateECS: ${{ parameters.updateECS }}
+             
+  # - template: /tools/jobs_common_tools.yml
+  #   parameters:
+  #     jobEnvironment: ${{ parameters.jobEnvironment }}
+  #     dependsOn: Deploy${{ parameters.jobEnvironment }}
+  #     #Email - Azure
+  #     azureSubscription: ${{ parameters.azureSubscription }}
+  #     keyVaultName: ${{ parameters.keyVaultName }}
+  #     #Email
+  #     emailEnabled: ${{ parameters.emailEnabled }}
+  #     emailTo: ${{ parameters.emailTo }}
+  #     emailCC: ${{ parameters.emailCC }}
+  #     emailBCC: ${{ parameters.emailBCC }}
+  #     emailFrom: ${{ parameters.emailFrom }}
+  #     emailTitle: ${{ parameters.emailTitle }}
+  #     #Tag
+  #     tagEnabled: ${{ parameters.tagEnabled }}
+  #     tagRepository: ${{ parameters.tagRepository }}
+  #     tagName: ${{ parameters.tagName }}

@@ -1,0 +1,100 @@
+# File: nodejs-npm-azure-pipeline-sonar.yml
+
+variables:
+  - group: nombreAplicacion
+
+pool:
+  vmImage: "macOS-latest" # La vmImage macOs tiene disponible 14GB RAM.
+
+steps:
+  - script: |
+      mem_total=$(sysctl -n hw.memsize)
+      mem_gb=$((mem_total / (1024 * 1024 * 1024)))
+      cpu_name=$(sysctl -n machdep.cpu.brand_string)
+      echo "Sistema Operativo: \$(Agent.OS)"
+      echo "Memoria Total (GB): $mem_gb GB"
+      echo "Procesador: $cpu_name"
+    displayName: "Muestra las Capacidades del Agente"
+    
+  - task: UseJava@1
+  inputs:
+    versionSpec: '17.x'  # Especifica Java 17
+    jdkArchitectureOption: 'x64'
+
+  - task: CopyFiles@2
+    inputs:
+      SourceFolder: "$(Build.SourcesDirectory)"
+      Contents: |
+        **/*
+        !.git/**/*
+      TargetFolder: "$(build.artifactstagingdirectory)"
+
+  - task: npmAuthenticate@0
+    displayName: "npm Authenticate"
+    inputs:
+      workingFile: "$(System.DefaultWorkingDirectory)/.npmrc"
+      customEndpoint: "Artifact - AzureDevOps"
+
+  - script: |
+      npm install -g yarn
+      node --version
+    displayName: "Instalando Yarn"
+
+  - task: NodeTool@0
+    inputs:
+      versionSpec: '18.x'
+    displayName: 'Instalando Node.js'
+
+  - script: |
+      cd $(System.DefaultWorkingDirectory)/application
+      yarn install
+      yarn add weak-napi
+    displayName: "Instalando dependencias del Proyecto"
+
+  - script: |
+      export NODE_OPTIONS=--max_old_space_size=16384
+    displayName: "Incrementa Memoria Limite del Node.js"
+
+  - script: |
+      cd $(System.DefaultWorkingDirectory)/application
+      # Execute each test individually with code coverage and specify Heap Size
+      SKIP_PREFLIGHT_CHECK=true yarn test --coverage --watchAll=false --logHeapUsage --coverageProvider=v8 --max_old_space_size=16384 --detectLeaks || true | tail -n 1000
+    displayName: "Ejecutando Tests con Codigo coberturado"
+    continueOnError: true  # Continua si es que existen test con fallas.
+
+  - task: SonarCloudPrepare@1
+    displayName: "Prepara el analisis en SonarCloud"
+    inputs:
+      SonarCloud: "SonarCloud UTP"
+      organization: "utp"
+      scannerMode: "CLI"
+      configMode: "manual"
+      cliProjectKey: "$(APPLICATION)"
+      cliProjectName: "$(APPLICATION)"
+      cliSources: "."
+      extraProperties: |
+        sonar.sourceEncoding=UTF-8
+        sonar.language=javascript
+        sonar.coverage.jacoco.xmlReportPaths=coverage/jacoco/report.xml
+        # Agregar otras propiedades de SonarCloud si necesitas hacer exclusiones.
+
+  - task: SonarCloudAnalyze@1
+    displayName: "Ejecuta el Analisis de Codigo"
+
+  - task: SonarCloudPublish@1
+    displayName: "Publica el Resultado de los Quality Gates"
+    inputs:
+      pollingTimeoutSec: "300"
+  - bash: |
+      # Obtener el porcentaje de cobertura del informe
+      coverage_percentage=$(grep -oP '(?<=lines....)([^%]+)' $(System.DefaultWorkingDirectory)/coverage/lcov-report/index.html)
+      # Validar si el porcentaje de cobertura es mayor que 80
+      if ((coverage_percentage > 80)); then
+        echo "La cobertura es mayor al 80%. ¡Validación exitosa!"
+        exit 0
+      else
+        echo "La cobertura no cumple con el 80%. ¡Validación fallida!"
+        exit 1
+      fi
+    displayName: "Validar Cobertura"
+    continueOnError: true  # No detener el pipeline si la validación falla

@@ -1,0 +1,92 @@
+parameters:
+  jobEnvironment:
+  preTaskIsEnabled: false
+  preTask:
+    script: echo "-"
+    displayName: '-' 
+  versionSpec:
+  branch:
+  zipDeployPrefix: ''
+  zipBuildPrefix: ''
+  s3BucketDeploy: ''
+  deployCommand:
+  #Parameters to deploy s3
+  awsCredentials:
+  regionName:
+  tags:
+  functionName:
+  functionNameIsLowerCase: false
+  functionSecurityGroups:
+  functionSubnets:
+  functionDescription:
+  functionHandler:
+  functionRuntime:
+  functionMemorySize:
+  functionTimeout:
+  functionEnvironments:
+  functionRoleARN:
+  #Azure
+  azureSubscription: 
+  keyVaultName: 
+  #Email
+  emailEnabled: false
+  emailTo:
+  emailCC:
+  emailBCC:
+  emailFrom:
+  emailTitle:
+  #Tag
+  tagEnabled: false
+  tagRepository: none
+  tagName: 
+jobs:
+  - deployment: Deploy${{ parameters.jobEnvironment }}
+    environment: ${{parameters.jobEnvironment}}
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - ${{ if eq(parameters['preTaskIsEnabled'], 'true') }}:
+            - ${{ parameters.preTask }}
+          - template: deploy.yml
+            parameters:
+              versionSpec: ${{ parameters.versionSpec }}
+              branch: ${{ parameters.branch }}
+              zipDeployPrefix: ${{ parameters.zipDeployPrefix }}
+              zipBuildPrefix: ${{ parameters.zipBuildPrefix }}
+              s3BucketDeploy: ${{ parameters.s3BucketDeploy }}
+              deployCommand: ${{ parameters.deployCommand }}
+              #Parameters to deploy s3
+              awsCredentials: ${{ parameters.awsCredentials }}
+              regionName: ${{ parameters.regionName }}
+              tags: ${{ parameters.tags }}
+              functionName: ${{ parameters.functionName }}
+              functionNameIsLowerCase: ${{ parameters.functionNameIsLowerCase }}
+              functionSecurityGroups: ${{ parameters.functionSecurityGroups }}
+              functionSubnets: ${{ parameters.functionSubnets }}
+              functionDescription: ${{ parameters.functionDescription }}
+              functionHandler: ${{ parameters.functionHandler }}
+              functionRuntime: ${{ parameters.functionRuntime }}
+              functionMemorySize: ${{ parameters.functionMemorySize }}
+              functionTimeout: ${{ parameters.functionTimeout }}
+              functionEnvironments: ${{ parameters.functionEnvironments }}
+              functionRoleARN: ${{ parameters.functionRoleARN }}
+
+#   - template: /tools/jobs_common_tools.yml
+#     parameters:
+#       jobEnvironment: ${{ parameters.jobEnvironment }}
+#       dependsOn: Deploy${{ parameters.jobEnvironment }}
+#       #Email - Azure
+#       azureSubscription: ${{ parameters.azureSubscription }}
+#       keyVaultName: ${{ parameters.keyVaultName }}
+#       #Email
+#       emailEnabled: ${{ parameters.emailEnabled }}
+#       emailTo: ${{ parameters.emailTo }}
+#       emailCC: ${{ parameters.emailCC }}
+#       emailBCC: ${{ parameters.emailBCC }}
+#       emailFrom: ${{ parameters.emailFrom }}
+#       emailTitle: ${{ parameters.emailTitle }}
+#       #Tag
+#       tagEnabled: ${{ parameters.tagEnabled }}
+#       tagRepository: ${{ parameters.tagRepository }}
+#       tagName: ${{ parameters.tagName }}

@@ -1,0 +1,143 @@
+parameters:
+  versionSpec:
+  functionRuntime:
+  branch:
+  preTaskIsEnabled: false
+  preTask:
+    script: echo "-"
+    displayName: '-' 
+  taskIsEnabled: false
+  task:
+    script: echo "-"
+    displayName: '-' 
+  zipDeployPrefix: ''
+  zipBuildPrefix: ''
+  s3BucketDeploy: ''
+  s3Path: ''
+  s3PathIsLowerCase: false
+  deployCommand:
+  awsCredentials:
+  regionName:
+  tags:
+  lambdaDeployFunctionTasks:
+  jobEnvironment:
+  jobName: 
+  advancedOptions:
+jobs:
+  - deployment: ${{ parameters.jobName }}
+    environment: ${{ parameters.jobEnvironment }}
+    displayName: ${{ parameters.jobName }}${{ parameters.jobEnvironment }}
+    strategy:
+      runOnce:
+        preDeploy:
+          steps:
+            - download: none
+            - task: NodeTool@0
+              displayName: 'Install Node.js'
+              inputs:
+                versionSpec: ${{ parameters.versionSpec }}
+            - ${{ if eq(parameters['preTaskIsEnabled'], 'true') }}:
+              - ${{ parameters.preTask }}
+            - script: |
+                BRANCH=`echo ${{ parameters.branch }} | cut -d "/" -f3`
+                BUCKETDEPLOY=`echo "${{ parameters.s3BucketDeploy }}" | awk '{ print tolower($0); }'`
+                S3PATH=${{ parameters.s3Path }}
+                BUILDFILENAME="${BRANCH}_build${{ parameters.zipBuildPrefix }}"
+                DEPLOYFILENAME="${BRANCH}_deploy${{ parameters.zipDeployPrefix }}"
+                if [[ "${{ parameters.s3PathIsLowerCase }}" == "true" ]]; then 
+                  S3PATH=`echo "${{ parameters.s3Path }}" | awk '{ print tolower($0); }'`
+                fi
+
+                BID=builds/$S3PATH/$(Build.BuildNumber).zip
+
+                echo "##vso[task.setvariable variable=branch]$BRANCH"
+                echo "##vso[task.setvariable variable=buildFileName]$BUILDFILENAME"
+                echo "##vso[task.setvariable variable=deployFileName]$DEPLOYFILENAME"
+
+                echo "##vso[task.setvariable variable=s3BucketDeploy]$BUCKETDEPLOY"
+                echo "##vso[task.setvariable variable=s3ObjectKey]$BID"
+              displayName: 'Prepare strategy'
+
+            - task: DownloadBuildArtifacts@0
+              displayName: 'Download "build" from Artifact'
+              inputs:
+                buildType: 'current'
+                downloadType: 'single'
+                artifactName: '$(branch)'
+                itemPattern: '**/$(buildFileName).zip'
+                downloadPath: .
+
+            - script: |
+                unzip $(branch)/$(buildFileName).zip -d .
+                rm -rf $(branch)
+              displayName: 'Unzip build of artifact'
+
+            - script: ${{ parameters.deployCommand }}
+              displayName: 'Install packages for deployment'
+
+            - script: zip -rq $(deployFileName).zip .
+              displayName: 'Zip code for deployment'
+
+            - task: PublishBuildArtifacts@1
+              displayName: 'Publish "zip" in Artifact'
+              inputs: 
+                pathToPublish: '$(deployFileName).zip'
+                artifactName: '$(branch)'
+
+            - task: AWSCLI@1
+              displayName: 'Move files to S3'
+              inputs:
+                awsCredentials: ${{ parameters.awsCredentials }}
+                regionName: ${{ parameters.regionName }}
+                awsCommand: 's3'
+                awsSubCommand: 'mv'
+                awsArguments: '--quiet $(deployFileName).zip s3://$(s3BucketDeploy)/$(s3ObjectKey)'
+        deploy:
+          steps:
+          - download: none
+          - ${{ if eq(parameters['taskIsEnabled'], 'true') }}:
+            - ${{ parameters.task }}
+          - ${{ each lambdaDeployFunction in parameters.lambdaDeployFunctionTasks }}:
+            - script: |
+                FUNCTION_NAME="${{ lambdaDeployFunction.functionName }}"
+                S3PATH=${{ parameters.s3Path }}
+
+                if [[ "${{ lambdaDeployFunction.functionNameIsLowerCase }}" == "true" ]]; then 
+                  FUNCTION_NAME=`echo "${{ lambdaDeployFunction.functionName }}" | awk '{ print tolower($0); }'`
+                fi
+                if [[ "${{ parameters.s3PathIsLowerCase }}" == "true" ]]; then 
+                  S3PATH=`echo "${{ parameters.s3Path }}" | awk '{ print tolower($0); }'`
+                fi
+
+                BID=builds/$S3PATH/$(Build.BuildNumber).zip
+                BUCKETDEPLOY=`echo "${{ parameters.s3BucketDeploy }}" | awk '{ print tolower($0); }'`
+
+                echo "##vso[task.setvariable variable=functionName]$FUNCTION_NAME"
+                echo "##vso[task.setvariable variable=s3BucketDeploy]$BUCKETDEPLOY"
+                echo "##vso[task.setvariable variable=s3ObjectKey]$BID"
+
+              displayName: Prepare ${{ lambdaDeployFunction.task }}
+            - task: LambdaDeployFunction@1
+              displayName: ${{ lambdaDeployFunction.displayName }}
+              inputs:
+                awsCredentials: ${{ parameters.awsCredentials }}
+                description: '${{ lambdaDeployFunction.functionDescription }}'
+                regionName: '${{ parameters.regionName }}'
+                deploymentMode: 'codeandconfiguration'
+                functionName: '$(functionName)'
+                s3Bucket: '$(s3BucketDeploy)'
+                s3ObjectKey: '$(s3ObjectKey)'
+                functionHandler: '${{ lambdaDeployFunction.functionHandler }}'
+                runtime: '${{ parameters.functionRuntime }}'
+                codeLocation: 's3object'
+                roleARN: '${{ lambdaDeployFunction.functionRoleARN }}'
+                memorySize: '${{ lambdaDeployFunction.functionMemorySize }}'
+                timeout: '${{ lambdaDeployFunction.functionTimeout }}'
+                environment: '${{ lambdaDeployFunction.functionEnvironments }}'
+                subnets: ${{ lambdaDeployFunction.functionSubnets }}
+                securityGroups: ${{ lambdaDeployFunction.functionSecurityGroups }}
+                tags: ${{ lambdaDeployFunction.tags }}
+                advancedOptions: '${{ parameters.advancedOptions }}'
+
+
+

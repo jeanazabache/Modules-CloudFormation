@@ -1,0 +1,43 @@
+parameters:
+  awsCredentials: ''
+  fileCloudformation:
+  regionName:
+steps:
+  
+- task: AWSCLI@1
+  inputs:
+    awsCredentials: ${{ parameters.awsCredentials }}
+    regionName: '${{ parameters.regionName }}'
+    awsCommand: 'cloudformation'
+    awsSubCommand: 'validate-template'
+    awsArguments: '--template-body file://${{ parameters.fileCloudFormation }}'
+  displayName: 'Validate template'  
+
+# - task: AWSShellScript@1
+#   inputs:
+#     awsCredentials: ${{ parameters.awsCredentials }}
+#     regionName: '$(REGION)'
+#     scriptType: 'inline'
+#     inlineScript: "cfn-policy-validator validate --template-path templates/infrastructure_template.yml --region $(REGION) --parameters ProjectName=$(COID)-$(ASSETID)-$(APID) SID=$(sid) MN=$(MN) Bucket=$(S3.bucket) DomainAPI=$(domainApi) DomainWeb=$(domainWeb) DomainCognito=$(domainCognito) HostedZoneId=$(hostedZoneId) DomainCertificate=$(domainCertificate) DomainCertificateApi=$(domainCertificateApi) RetentionInDays=$(retentionInDays) SendEmail=$(sendEmail) LicenseKey=$(licenseKey) NrAccountId=$(nrAccountId) AccountId=$(accountId) Region=$(region)"
+#   displayName: 'Validate Policy'
+
+
+# - task: S3Upload@1
+#   displayName: 'Create or Update bucket' 
+#   inputs:
+#     awsCredentials: ${{ parameters.awsCredentials }}
+#     regionName: 'us-east-1'
+#     bucketName: '$(S3.bucket)'
+#     sourceFolder: '$(System.DefaultWorkingDirectory)/templates'
+#     globExpressions: '**'
+#     targetFolder: 'templates'
+#     createBucket: true
+
+# - task: AWSCLI@1
+#   displayName: 'Move template to S3'
+#   inputs:
+#     awsCredentials: ${{ parameters.awsCredentials }}
+#     regionName: us-east-1
+#     awsCommand: 's3'
+#     awsSubCommand: 'mv'
+#     awsArguments: '--quiet templates/infrastructure_template.yml s3://$(S3.bucket)/templates/infrastructure_template.yml'  

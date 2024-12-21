@@ -1,0 +1,43 @@
+parameters:
+  jobEnvironment:
+  dependsOn:
+  #Azure
+  azureSubscription:
+  keyVaultName:
+  #Email
+  emailEnabled: false
+  emailTo:
+  emailCC:
+  emailBCC:
+  emailFrom:
+  emailTitle:
+  #Tag
+  tagEnabled: false
+  tagRepository: none
+  tagName: 
+jobs:
+
+  - job: 'SendEmail${{parameters.jobEnvironment}}'
+    condition: and(succeeded(), eq('${{ parameters.emailEnabled }}', 'true'))
+    dependsOn: ${{ parameters.dependsOn }}
+    pool:
+      vmImage: "windows-latest"
+    steps:
+    - template: 'email_template.yml'
+      parameters:
+        azureSubscription: ${{ parameters.azureSubscription }}
+        keyVaultName: ${{ parameters.keyVaultName }}
+        to: ${{ parameters.emailTo }}
+        cc: ${{ parameters.emailCC }}
+        bcc: ${{ parameters.emailBCC }}
+        from: ${{ parameters.emailFrom }}
+        title: ${{ parameters.emailTitle }}
+
+  - job: 'Tag${{parameters.jobEnvironment}}'
+    condition: and(succeeded(), eq('${{ parameters.tagEnabled }}', 'true'))
+    dependsOn: ${{ parameters.dependsOn }}
+    steps:
+    - template: 'tag_template.yml'
+      parameters:
+        repository: ${{ parameters.tagRepository }} 
+        tag_name: ${{ parameters.tagName }}

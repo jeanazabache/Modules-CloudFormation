@@ -1,0 +1,19 @@
+#Docker File template
+
+# Usa la imagen oficial mínima de Node.js versión 20 basada en Alpine Linux
+FROM node:20-alpine
+
+# Establece el directorio de trabajo en /app
+WORKDIR /app
+
+# Instala dependencias globales necesarias por ejemplo Yarn
+RUN npm install -g yarn
+
+# Exponer el puerto 3000 por defecto
+EXPOSE 3000
+
+# Define una etiqueta para identificar la versión base
+LABEL version="1.0.0"
+
+# CMD por defecto (puede ser personalizado en Dockerfiles específicos)
+CMD ["node"]

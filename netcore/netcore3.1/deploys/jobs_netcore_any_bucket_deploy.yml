@@ -1,0 +1,59 @@
+parameters:
+  jobEnvironment:
+  jobName:
+  branch:
+  awsCredentials:
+  regionName:
+  tasks:
+  zipBuildPrefix: ''
+  zipFolderDeployPrefix: ''
+  #Azure
+  azureSubscription: 
+  keyVaultName: 
+  #Email
+  emailEnabled: false
+  emailTo:
+  emailCC:
+  emailBCC:
+  emailFrom:
+  emailTitle:
+  #Tag
+  tagEnabled: false
+  tagRepository: none
+  tagName: 
+  #tools
+  toolDependsOn:
+jobs:
+  - deployment: ${{ parameters.jobName }}
+    environment: ${{ parameters.jobEnvironment }}
+    displayName: ${{ parameters.jobName }}${{ parameters.jobEnvironment }}
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+            - download: none
+            - template: netcore_any_bucket_deploy.yml
+              parameters:
+                branch: ${{ parameters.branch }}
+                awsCredentials: ${{ parameters.awsCredentials }}
+                regionName: ${{ parameters.regionName }}
+                tasks: ${{ parameters.tasks }}
+                
+  - template: /tools/jobs_common_tools.yml
+    parameters:
+      jobEnvironment: ${{ parameters.jobEnvironment }}
+      dependsOn: ${{ parameters.jobName }}
+      #Email - Azure
+      azureSubscription: ${{ parameters.azureSubscription }}
+      keyVaultName: ${{ parameters.keyVaultName }}
+      #Email
+      emailEnabled: ${{ parameters.emailEnabled }}
+      emailTo: ${{ parameters.emailTo }}
+      emailCC: ${{ parameters.emailCC }}
+      emailBCC: ${{ parameters.emailBCC }}
+      emailFrom: ${{ parameters.emailFrom }}
+      emailTitle: ${{ parameters.emailTitle }}
+      #Tag
+      tagEnabled: ${{ parameters.tagEnabled }}
+      tagRepository: ${{ parameters.tagRepository }}
+      tagName: ${{ parameters.tagName }}

@@ -1,0 +1,37 @@
+parameters:
+  awsCredentials:
+  regionName:
+  stackNameCF:
+  env:
+steps:
+
+- task: AWSShellScript@1
+  displayName: 'Set output log from CF'
+  inputs:
+    awsCredentials: ${{ parameters.awsCredentials }}
+    regionName: '${{  parameters.regionName }}'
+    scriptType: 'inline'
+    inlineScript: |
+      mkdir logs
+      aws cloudformation describe-stack-events --stack-name ${{ parameters.stackNameCF }} --max-items 300 > logs/CF_EVENT_LOG_${{ parameters.stackNameCF }}_${{  parameters.env }}.json
+
+- task: AWSShellScript@1
+  displayName: 'Set output log from CF'
+  inputs:
+    awsCredentials: ${{ parameters.awsCredentials }}
+    regionName: '${{  parameters.regionName }}'
+    scriptType: 'inline'
+    inlineScript: aws cloudformation describe-stacks --stack-name ${{ parameters.stackNameCF }} --query "Stacks[0].Outputs" --output json > logs/CF_OUTPUT_${{ parameters.stackNameCF }}_${{  parameters.env }}.json
+      
+
+- task: PublishBuildArtifacts@1
+  displayName: 'Publish event logs "json" in Artifact'
+  inputs: 
+    pathToPublish: 'logs/CF_EVENT_LOG_${{ parameters.stackNameCF }}_${{  parameters.env }}.json'
+    artifactName:  'LOG_${{  parameters.env }}'
+
+- task: PublishBuildArtifacts@1
+  displayName: 'Publish CF outputs "json" in Artifact'
+  inputs: 
+    pathToPublish: 'logs/CF_OUTPUT_${{ parameters.stackNameCF }}_${{  parameters.env }}.json'
+    artifactName:  'LOG_${{  parameters.env }}'

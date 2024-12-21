@@ -1,0 +1,47 @@
+parameters:
+  branch: ''
+  versionSdk: '3.1.x'
+  buildProject: '*.csproj'
+  zipBuildPrefix: ''
+  includePreviewVersions: true
+steps:
+
+  - script: |
+      BRANCH=`echo ${{ parameters.branch }} | cut -d "/" -f3`
+      BUILDFILENAME="${BRANCH}_build${{ parameters.zipBuildPrefix }}"
+      
+      echo "##vso[task.setvariable variable=branch]$BRANCH"
+      echo "##vso[task.setvariable variable=buildFileName]$BUILDFILENAME"
+    displayName: 'Prepare strategy'
+
+  - task: UseDotNet@2
+    displayName: 'Use .Net Core SDK ${{parameters.versionSdk}}'
+    inputs:
+      packageType: sdk
+      version: '${{parameters.versionSdk}}'
+      installationPath: $(Agent.ToolsDirectory)/dotnet
+      includePreviewVersions: ${{ parameters.includePreviewVersions }}
+
+  - task: DotNetCoreCLI@2
+    displayName: 'Dotnet restore'
+    inputs:
+      command: 'restore'
+      projects: ${{parameters.buildProject}}
+      includeNuGetOrg: true
+
+  - task: DotNetCoreCLI@2
+    displayName: 'Dotnet build'
+    inputs:
+      command: 'build'
+      projects: ${{parameters.buildProject}}
+
+  - script: zip -rq $(buildFileName).zip .
+    displayName: 'Generate "zip" of the build'
+
+  - task: PublishBuildArtifacts@1
+    displayName: 'Publish "zip" in Artifact'
+    inputs: 
+      pathToPublish: '$(buildFileName).zip'
+      artifactName: '$(branch)'
+
+

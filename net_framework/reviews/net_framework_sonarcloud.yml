@@ -1,0 +1,70 @@
+  parameters:
+    branch: ''
+    zipBuildPrefix: ''
+    solutionMsBuild: ''
+    #Sonarcloud
+    sonarCloud:
+    organization:
+    cliProjectKey:
+    cliProjectName:
+    firstUploadSonarCloud: false
+
+  steps:
+  
+  - task: PowerShell@2
+    displayName: Prepare strategy
+    inputs:
+      targetType: 'inline'
+      script: |
+        $BRANCH="${{ parameters.branch }}".split("/")[2]
+        $BUILDFILENAME="${BRANCH}_build${{ parameters.zipBuildPrefix }}"
+        Write-Host "##vso[task.setvariable variable=buildFileName]$BUILDFILENAME"
+        Write-Host "##vso[task.setvariable variable=branch]$BRANCH"
+
+  - task: DownloadBuildArtifacts@0
+    displayName: 'Download build from Artifact'
+    inputs:
+      buildType: 'current'
+      downloadType: 'single'
+      artifactName: '$(branch)'
+      itemPattern: '**/$(buildFileName).zip'
+      downloadPath: .
+  
+  - task: ExtractFiles@1
+    displayName: 'Unzip files artifact'
+    inputs:
+      archiveFilePatterns: '$(Build.SourcesDirectory)/$(branch)/$(buildFileName).zip'
+      destinationFolder: '$(Build.SourcesDirectory)'
+      cleanDestinationFolder: false
+      overwriteExistingFiles: true 
+
+  - bash: rm -rf $(branch)
+    displayName: Remove artifact file
+
+  # Preparar y analizar sonarcloud
+  - template: /sonarcloud/scanners/sonarcloud_msbuild.yml@Architecture
+    parameters:
+      extraProperties: '${{ parameters.extraProperties }}'
+      sonarCloud: '${{ parameters.sonarCloud }}'
+      organization: '${{ parameters.organization }}'
+      cliProjectKey: '${{ parameters.cliProjectKey }}'
+      cliProjectName: '${{ parameters.cliProjectName }}'
+      sonarCloudBranch: '$(branch)'
+      firstUploadSonarCloud: '${{ parameters.firstUploadSonarCloud }}'
+
+  - task: MSBuild@1
+    displayName: 'Build solution'
+    inputs:
+      solution: '${{parameters.solutionMsBuild}}'
+      clean: true
+
+  # Enviar analizar y publicar sonarcloud
+  - template: /sonarcloud/scanners/sonarcloud_analyze_publish.yml@Architecture
+
+  # Evaluación sonarcloud
+  - template: /sonarcloud/apis/sonarcloud_status.yml@Architecture
+    parameters:
+      sonarCloudBranch: '$(branch)'
+      sonarCloudToken: '${{ parameters.sonarCloudToken }}'
+      cliProjectKey: '${{ parameters.cliProjectKey }}'
+

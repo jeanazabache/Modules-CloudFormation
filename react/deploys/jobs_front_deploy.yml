@@ -1,0 +1,76 @@
+parameters:
+  sourceFolder: "dist"
+  jobEnvironment:
+  scriptTaskEnabled: false
+  zipBuildPrefix: ""
+  scriptTask:
+    script: echo "There is no test task"
+    displayName: "There is no test task"
+  branch:
+  versionSpec:
+  awsCredentials:
+  regionName:
+  distributionId:
+  s3BucketDeploy:
+  targetFolder: ""
+  replaceEnvIsEnabled: false
+  targetFiles:
+  #Azure
+  azureSubscription:
+  keyVaultName:
+  #Email
+  emailEnabled: false
+  emailTo:
+  emailCC:
+  emailBCC:
+  emailFrom:
+  emailTitle:
+  #Tag
+  tagEnabled: false
+  tagRepository: none
+  tagName:
+  filterSourceFolder: '/*'
+jobs:
+  - deployment: Deploy${{ parameters.jobEnvironment }}
+    environment: ${{parameters.jobEnvironment}}
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+            - download: none
+            - ${{ if eq(parameters['scriptTaskEnabled'], 'true') }}:
+                - ${{ parameters.scriptTask }}
+
+            - template: front_deploy.yml
+              parameters:
+                awsCredentials: ${{ parameters.awsCredentials }}
+                branch: ${{ parameters.branch }}
+                versionSpec: ${{ parameters.versionSpec }}
+                regionName: ${{ parameters.regionName }}
+                distributionId: ${{ parameters.distributionId }}
+                targetFolder: ${{ parameters.targetFolder }}
+                s3BucketDeploy: ${{ parameters.s3BucketDeploy }}
+                replaceEnvIsEnabled: ${{ parameters.replaceEnvIsEnabled }}
+                targetFiles: ${{ parameters.targetFiles }}
+                sourceFolder: ${{ parameters.sourceFolder }}
+                zipBuildPrefix: ${{ parameters.zipBuildPrefix }}
+                filterSourceFolder: ${{ parameters.filterSourceFolder }}
+
+  - template: /tools/jobs_common_tools.yml
+    parameters:
+      jobEnvironment: ${{ parameters.jobEnvironment }}
+      dependsOn: Deploy${{ parameters.jobEnvironment }}
+      #Email - Azure
+      azureSubscription: ${{ parameters.azureSubscription }}
+      keyVaultName: ${{ parameters.keyVaultName }}
+      #Email
+      emailEnabled: ${{ parameters.emailEnabled }}
+      emailTo: ${{ parameters.emailTo }}
+      emailCC: ${{ parameters.emailCC }}
+      emailBCC: ${{ parameters.emailBCC }}
+      emailFrom: ${{ parameters.emailFrom }}
+      emailTitle: ${{ parameters.emailTitle }}
+      #Tag
+      tagEnabled: ${{ parameters.tagEnabled }}
+      tagRepository: ${{ parameters.tagRepository }}
+      tagName: ${{ parameters.tagName }}

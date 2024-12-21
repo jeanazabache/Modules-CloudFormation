@@ -1,0 +1,26 @@
+
+steps:
+
+  - task: UseDotNet@2
+    displayName: 'Use .Net Core SDK $(versionSdk)'
+    inputs:
+      packageType: sdk
+      version: $(versionSdk)
+      installationPath: $(Agent.ToolsDirectory)/dotnet
+      includePreviewVersions: true
+
+  - task: DotNetCoreCLI@2
+    displayName: 'Dotnet build $(buildConfiguration)'
+    inputs:
+      command: 'build'
+      projects: $(buildProject)
+      arguments: '--configuration $(buildConfiguration)'
+
+  - task: DotNetCoreCLI@2
+    displayName: 'Dotnet publish $(buildConfiguration)'
+    inputs:
+      command: 'publish'
+      publishWebProjects: false
+      projects: $(publishProject)
+      arguments: '-c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)'
+      zipAfterPublish: true

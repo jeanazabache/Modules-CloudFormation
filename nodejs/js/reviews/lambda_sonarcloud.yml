@@ -1,0 +1,68 @@
+parameters:
+  branch:
+  versionSpec: '14.x'
+  zipBuildPrefix: ''
+  testIsEnabled: false
+  testTask:
+    script: echo "There is no test task"
+    displayName: 'There is no test task' 
+  #SonarCloud
+  extraProperties:
+  sonarCloud:
+  sonarCloudToken:
+  organization:
+  cliProjectKey:
+  cliProjectName:
+  firstUploadSonarCloud: false
+steps:
+
+  - task: NodeTool@0
+    displayName: 'Install Node.js'
+    inputs:
+      versionSpec: ${{ parameters.versionSpec }}
+
+  - script: |
+      BRANCH=`echo ${{ parameters.branch }} | cut -d "/" -f3`
+      BUILDFILENAME="${BRANCH}_build${{ parameters.zipBuildPrefix }}"
+      
+      echo "##vso[task.setvariable variable=branch]$BRANCH"
+      echo "##vso[task.setvariable variable=buildFileName]$BUILDFILENAME"
+    displayName: 'Prepare strategy'
+
+  - task: DownloadBuildArtifacts@0
+    displayName: 'Download build from Artifact'
+    inputs:
+      buildType: 'current'
+      downloadType: 'single'
+      artifactName: '$(branch)'
+      itemPattern: '**/$(buildFileName).zip'
+      downloadPath: .
+
+  - script: | 
+      unzip $(branch)/$(buildFileName).zip -d .
+      rm -rf $(branch)
+    displayName: 'Unzip build of artifact'
+
+  - ${{ if eq(parameters['testIsEnabled'], 'true') }}:
+    - ${{ parameters.testTask }}
+
+  # Preparar y analizar sonarcloud
+  - template: /sonarcloud/scanners/sonarcloud_cli.yml@InfraestructuraCorporativa
+    parameters:
+      scannerMode: 'CLI'
+      configMode: 'manual'
+      extraProperties: '${{ parameters.extraProperties }}'
+      sonarCloud: '${{ parameters.sonarCloud }}'
+      organization: '${{ parameters.organization }}'
+      cliProjectKey: '${{ parameters.cliProjectKey }}'
+      cliProjectName: '${{ parameters.cliProjectName }}'
+      sonarCloudBranch: '$(branch)'
+      firstUploadSonarCloud: '${{ parameters.firstUploadSonarCloud }}'
+
+  # Evaluación sonarcloud
+  - template: /sonarcloud/apis/sonarcloud_status.yml@InfraestructuraCorporativa
+    parameters:
+      sonarCloudBranch: '$(branch)'
+      sonarCloudToken: '${{ parameters.sonarCloudToken }}'
+      cliProjectKey: '${{ parameters.cliProjectKey }}'
+

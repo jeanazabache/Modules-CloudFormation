@@ -1,0 +1,66 @@
+parameters: 
+  solution: ''
+  publishProfile: ''
+  routePublish: ''
+  contentsZip: '**'
+  packageIsEnabled: false
+  restoreSolutionNuget: '**/*.sln'
+  packDestinationNuget: '$(Build.ArtifactStagingDirectory)'
+  #Paquetes manuales
+  taskCustomPackageIsEnabled: false
+  taskCustomPackage: ''
+
+steps:
+
+- task: NuGetToolInstaller@0
+  condition: and(succeeded(), eq('${{ parameters.packageIsEnabled }}', 'true'))
+
+#####################################Paquetes manuales####################################################################
+
+- ${{ if eq(parameters['taskCustomPackageIsEnabled'], 'true') }}:
+  - ${{ parameters.taskCustomPackage }}
+
+#########################################################################################################
+
+- task: NuGetCommand@2
+  condition: and(succeeded(), eq('${{ parameters.packageIsEnabled }}', 'true'))
+  displayName: Install packages
+  inputs:
+    restoreSolution: '${{ parameters.restoreSolutionNuget }}'
+    packDestination: '${{ parameters.packDestinationNuget }}'
+
+# - script: cd packages && dir
+#   displayName: list packages installed
+
+- task: MSBuild@1
+  displayName: 'Build solution'
+  inputs:
+    solution: '${{parameters.solution}}'
+    #platform: '${{parameters.buildPlatform}}'
+    #configuration: '${{parameters.buildConfiguration}}'
+    msbuildArguments: '/p:DeployOnBuild=true /p:PublishProfile=${{parameters.publishProfile}} /p:Configuration=Release /p:AutoParameterizationWebConfigConnectionStrings=false'
+    #restoreNugetPackages: true
+    clean: true
+
+- task: CopyFiles@2
+  inputs:
+    SourceFolder: '$(Build.SourcesDirectory)/${{parameters.routePublish}}'
+    contents: ${{parameters.contentsZip}}
+    targetFolder: '$(Build.ArtifactStagingDirectory)' 
+
+- task: ArchiveFiles@2
+  inputs:
+    rootFolderOrFile: '$(Build.ArtifactStagingDirectory)' 
+    includeRootFolder: false 
+    archiveType: 'zip'
+    archiveFile: '$(Build.ArtifactStagingDirectory)/$(zipName).zip' 
+
+- script: mv $(Build.ArtifactStagingDirectory)/*.zip ./$(zipName).zip
+  displayName: 'Move and rename build zip'
+
+- task: PublishBuildArtifacts@1
+  displayName: Publish build artifact
+  inputs:
+    PathtoPublish: '$(zipName).zip'
+    ArtifactName: 'releases'
+    publishLocation: 'Container'

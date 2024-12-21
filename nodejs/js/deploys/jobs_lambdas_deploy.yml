@@ -1,0 +1,82 @@
+parameters:
+  jobEnvironment:
+  jobName:
+  #Deploy
+  preTaskIsEnabled: false
+  preTask:
+    script: echo "-"
+    displayName: '-' 
+  taskIsEnabled: false
+  task:
+    script: echo "-"
+    displayName: '-' 
+  versionSpec:
+  functionRuntime:
+  branch:
+  zipDeployPrefix: ''
+  zipBuildPrefix: ''
+  s3BucketDeploy: ''
+  deployCommand:
+  s3Path: ''
+  s3PathIsLowerCase: false
+  awsCredentials:
+  regionName:
+  tags:
+  lambdaDeployFunctionTasks:
+  #Azure
+  azureSubscription: 
+  keyVaultName: 
+  #Email
+  emailEnabled: false
+  emailTo:
+  emailCC:
+  emailBCC:
+  emailFrom:
+  emailTitle:
+  #Tag
+  tagEnabled: false
+  tagRepository: none
+  tagName: 
+  #tools
+  toolDependsOn:
+jobs:
+  - template: lambdas_deploy.yml
+    parameters:
+      jobName: ${{ parameters.jobName }}
+      jobEnvironment: ${{ parameters.jobEnvironment }}
+      awsCredentials: ${{ parameters.awsCredentials }}
+      regionName: ${{ parameters.regionName }}
+      versionSpec: ${{ parameters.versionSpec }}
+      functionRuntime: ${{ parameters.functionRuntime }}
+      preTaskIsEnabled: ${{ parameters.preTaskIsEnabled }}
+      preTask: ${{ parameters.preTask }}
+      taskIsEnabled: ${{ parameters.taskIsEnabled }}
+      task: ${{ parameters.task }}
+      branch: ${{ parameters.branch }}
+      zipDeployPrefix: ${{ parameters.zipDeployPrefix }}
+      zipBuildPrefix: ${{ parameters.zipBuildPrefix }}
+      s3BucketDeploy: ${{ parameters.s3BucketDeploy }}
+      s3Path: ${{ parameters.s3Path }}
+      s3PathIsLowerCase: ${{ parameters.s3PathIsLowerCase }}
+      deployCommand: ${{ parameters.deployCommand }}
+      tags: ${{ parameters.tags }}
+      lambdaDeployFunctionTasks: ${{ parameters.lambdaDeployFunctionTasks }}
+
+  - template: /tools/jobs_common_tools.yml
+    parameters:
+      jobEnvironment: ${{ parameters.jobEnvironment }}
+      dependsOn: ${{ parameters.toolDependsOn }}
+      #Email - Azure
+      azureSubscription: ${{ parameters.azureSubscription }}
+      keyVaultName: ${{ parameters.keyVaultName }}
+      #Email
+      emailEnabled: ${{ parameters.emailEnabled }}
+      emailTo: ${{ parameters.emailTo }}
+      emailCC: ${{ parameters.emailCC }}
+      emailBCC: ${{ parameters.emailBCC }}
+      emailFrom: ${{ parameters.emailFrom }}
+      emailTitle: ${{ parameters.emailTitle }}
+      #Tag
+      tagEnabled: ${{ parameters.tagEnabled }}
+      tagRepository: ${{ parameters.tagRepository }}
+      tagName: ${{ parameters.tagName }}

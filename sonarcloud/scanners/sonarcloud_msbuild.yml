@@ -1,0 +1,31 @@
+parameters:
+  sonarCloudBranch:
+  extraProperties:
+  sonarCloud:
+  organization:
+  cliProjectKey:
+  cliProjectName:
+  firstUploadSonarCloud: false
+
+steps:
+
+  - bash: |
+      BRANCH_SONARCLOUD=''
+      if [[ "${{parameters.firstUploadSonarCloud}}" == "false" ]]; 
+        then BRANCH_SONARCLOUD=`echo "sonar.branch.name=${{ parameters.sonarCloudBranch }}"`
+      fi
+      echo "##vso[task.setvariable variable=sonarCloudBranch]$BRANCH_SONARCLOUD"
+    condition: succeeded()
+    displayName: 'Set branch for sonarcloud'
+
+  - task: SonarCloudPrepare@1
+    displayName: 'Prepare analysis configuration'
+    inputs:
+      SonarCloud: ${{ parameters.sonarCloud }}
+      organization: ${{ parameters.organization }}
+      scannerMode: 'MSBuild'
+      projectKey:  ${{ parameters.cliProjectKey }}
+      projectName: ${{ parameters.cliProjectName }}
+      extraProperties: |
+        ${{ parameters.extraProperties }}
+        $(sonarCloudBranch)

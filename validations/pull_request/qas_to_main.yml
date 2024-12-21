@@ -1,0 +1,11 @@
+
+steps:
+
+  - script: |
+      if [[ "$(fromQas)" == "True" || "$(fromHotfix)" == "True" || "$(fromRelease)" == "True" ]]; then echo "ok";
+      else exit 1;
+      fi
+    condition: and( succeeded(), eq(variables.toMain, 'true') )
+    displayName: 'Pull request PRD'
+
+

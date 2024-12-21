@@ -1,0 +1,48 @@
+parameters:
+  jobEnvironment:
+  awsCredentials: ''
+  pathCloudformation: 'cloudformation'
+  #Azure
+  azureSubscription:
+  keyVaultName:
+  #Email
+  emailEnabled: false
+  emailTo:
+  emailCC:
+  emailBCC:
+  emailFrom:
+  emailTitle:
+  #Tag
+  tagEnabled: false
+  tagRepository: none
+  tagName: 
+jobs:
+  - deployment: Deploy${{ parameters.jobEnvironment }}
+    environment: ${{parameters.jobEnvironment}}
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - template: infrastructure_deploy.yml
+            parameters:
+              awsCredentials: ${{ parameters.awsCredentials }}
+              pathCloudformation: ${{ parameters.pathCloudformation }}
+
+  - template: /tools/jobs_common_tools.yml
+    parameters:
+      jobEnvironment: ${{ parameters.jobEnvironment }}
+      dependsOn: Deploy${{ parameters.jobEnvironment }}
+      #Email - Azure
+      azureSubscription: ${{ parameters.azureSubscription }}
+      keyVaultName: ${{ parameters.keyVaultName }}
+      #Email
+      emailEnabled: ${{ parameters.emailEnabled }}
+      emailTo: ${{ parameters.emailTo }}
+      emailCC: ${{ parameters.emailCC }}
+      emailBCC: ${{ parameters.emailBCC }}
+      emailFrom: ${{ parameters.emailFrom }}
+      emailTitle: ${{ parameters.emailTitle }}
+      #Tag
+      tagEnabled: ${{ parameters.tagEnabled }}
+      tagRepository: ${{ parameters.tagRepository }}
+      tagName: ${{ parameters.tagName }}

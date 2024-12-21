@@ -1,0 +1,54 @@
+parameters: 
+  branch: ''
+  zipBuildPrefix: ''
+  solutionMsBuild: ''
+  packageIsEnabled: false
+  restoreSolutionNuget: '**/*.sln'
+  packDestinationNuget: '$(Build.ArtifactStagingDirectory)'
+  #Paquetes manuales
+  taskCustomPackageIsEnabled: false
+  taskCustomPackage: ''
+
+steps:
+
+  - task: PowerShell@2
+    displayName: Prepare strategy
+    inputs:
+      targetType: 'inline'
+      script: |
+        $BRANCH="${{ parameters.branch }}".split("/")[2]
+        $BUILDFILENAME="${BRANCH}_build${{ parameters.zipBuildPrefix }}"
+        Write-Host "##vso[task.setvariable variable=buildFileName]$BUILDFILENAME"
+        Write-Host "##vso[task.setvariable variable=branch]$BRANCH"
+
+  - task: NuGetToolInstaller@0
+    condition: and(succeeded(), eq('${{ parameters.packageIsEnabled }}', 'true'))
+
+  - ${{ if eq(parameters['taskCustomPackageIsEnabled'], 'true') }}:
+    - ${{ parameters.taskCustomPackage }}
+
+  - task: NuGetCommand@2
+    condition: and(succeeded(), eq('${{ parameters.packageIsEnabled }}', 'true'))
+    displayName: Install packages
+    inputs:
+      restoreSolution: '${{ parameters.restoreSolutionNuget }}'
+      packDestination: '${{ parameters.packDestinationNuget }}'
+
+  - task: MSBuild@1
+    displayName: 'Build solution'
+    inputs:
+      solution: '${{parameters.solutionMsBuild}}'
+      clean: true
+
+  - task: ArchiveFiles@2
+    inputs:
+      rootFolderOrFile: '$(Build.SourcesDirectory)' 
+      includeRootFolder: false 
+      archiveType: 'zip'
+      archiveFile: '$(Build.SourcesDirectory)/$(buildFileName).zip' 
+
+  - task: PublishBuildArtifacts@1
+    displayName: 'Publish "zip" in sArtifact'
+    inputs: 
+      pathToPublish: '$(buildFileName).zip'
+      artifactName: '$(branch)'

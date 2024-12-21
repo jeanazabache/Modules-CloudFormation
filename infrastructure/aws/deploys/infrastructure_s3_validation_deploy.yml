@@ -1,0 +1,46 @@
+parameters:
+  awsCredentials:
+  regionName: 
+  s3BucketDeploy:
+  targetFolder: ''
+  sourceFolder: ''
+  globExpressions: '**'
+  awsArgumentsValidateTemplate:
+  createBucket: false
+steps:
+
+- task: AWSShellScript@1
+  displayName: "Create bucket if not exists"
+  inputs:
+    awsCredentials: ${{ parameters.awsCredentials }}
+    regionName: '${{ parameters.regionName }}'
+    scriptType: 'inline'
+    inlineScript: |
+      aws s3api head-bucket --bucket ${{ parameters.s3BucketDeploy }} 1>/dev/null 2>&1
+      if [[ $? -eq 0 ]]; then
+        echo 'Bucket ${{ parameters.s3BucketDeploy }} already exists'
+      else
+        aws s3api create-bucket --bucket ${{ parameters.s3BucketDeploy }}
+        echo 'Bucket ${{ parameters.s3BucketDeploy }} created'
+      fi
+
+
+- task: S3Upload@1
+  displayName: 'Move dist to S3'
+  inputs:
+    awsCredentials: ${{ parameters.awsCredentials }}
+    regionName: '${{ parameters.regionName }}'
+    bucketName: '${{ parameters.s3BucketDeploy }}'
+    globExpressions: ${{ parameters.globExpressions }}
+    createBucket: ${{ parameters.createBucket }}
+    targetFolder: ${{ parameters.targetFolder }}
+    sourceFolder: '${{ parameters.sourceFolder }}'
+
+- task: AWSCLI@1
+  inputs:
+    awsCredentials: ${{ parameters.awsCredentials }}
+    regionName: '${{ parameters.regionName }}'
+    awsCommand: 'cloudformation'
+    awsSubCommand: 'validate-template'
+    awsArguments: ${{ parameters.awsArgumentsValidateTemplate }}
+  displayName: 'Validate template'

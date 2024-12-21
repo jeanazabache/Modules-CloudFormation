@@ -1,0 +1,74 @@
+parameters:
+  branch:
+  versionSpec:
+  awsCredentials:
+  regionName:
+  distributionId:
+  s3BucketDeploy:
+  targetFolder: ""
+  replaceEnvIsEnabled: false
+  targetFiles:
+  sourceFolder: "dist"
+  zipBuildPrefix: ""
+  filterSourceFolder: '/*'
+steps:
+  - script: |
+      BRANCH=`echo ${{ parameters.branch }} | cut -d "/" -f3`
+      BUCKETDEPLOY=`echo "${{ parameters.s3BucketDeploy }}" | awk '{ print tolower($0); }'`
+
+      BUILDFILENAME="${BRANCH}_build${{ parameters.zipBuildPrefix }}"
+      DEPLOYFILENAME="${BRANCH}_deploy${{ parameters.zipDeployPrefix }}"
+
+      echo "##vso[task.setvariable variable=branch]$BRANCH"
+      echo "##vso[task.setvariable variable=buildFileName]$BUILDFILENAME"
+      echo "##vso[task.setvariable variable=deployFileName]$DEPLOYFILENAME"
+      echo "##vso[task.setvariable variable=s3BucketDeploy]$BUCKETDEPLOY"
+    displayName: "Prepare strategy"
+
+  - task: DownloadBuildArtifacts@0
+    displayName: "Download build from Artifact"
+    inputs:
+      buildType: "current"
+      downloadType: "single"
+      artifactName: "$(branch)"
+      itemPattern: "**/$(buildFileName).zip"
+      downloadPath: .
+
+  - script: |
+      ls -la
+      ls dev/
+      echo $(branch)/$(buildFileName).zip
+
+      unzip -o ./$(branch)/$(buildFileName).zip ${{ parameters.sourceFolder }}${{ parameters.filterSourceFolder }} -d .
+      rm -rf ./$(branch)
+      ls -la
+    displayName: "Unzip build of artifact"
+
+  - task: S3Upload@1
+    displayName: "Move dist to S3"
+    inputs:
+      awsCredentials: ${{ parameters.awsCredentials }}
+      regionName: "${{ parameters.regionName }}"
+      bucketName: "$(s3BucketDeploy)"
+      globExpressions: "**"
+      createBucket: false
+      targetFolder: ${{ parameters.targetFolder }}
+      sourceFolder: "${{ parameters.sourceFolder }}"
+
+  - task: AWSCLI@1
+    displayName: "Invalidation Cloudfront"
+    inputs:
+      awsCredentials: ${{ parameters.awsCredentials }}
+      regionName: "${{ parameters.regionName }}"
+      awsCommand: "cloudfront"
+      awsSubCommand: "create-invalidation"
+      awsArguments: '--distribution-id ${{ parameters.distributionId }} --paths "/*"'
+
+  - script: zip -rq $(deployFileName).zip .
+    displayName: "Zip code for deployment"
+
+  - task: PublishBuildArtifacts@1
+    displayName: 'Publish "zip" in Artifact'
+    inputs:
+      pathToPublish: "$(deployFileName).zip"
+      artifactName: "$(branch)"

@@ -1,0 +1,103 @@
+parameters:
+  branch: ''
+  awsCredentials: ''
+  zipBuildPrefix: ''
+  zipDeployPrefix: ''
+  enabledCreateECR: false
+  commandCreateECR: ''
+  dockerLoginECR: ''
+  dockerBuildECR: ''
+  dockerTagECR : ''
+  dockerPushECR : ''
+  commandUpdateECS: ''
+  #Cloudformation
+  enabledCloudformation: false
+  fileCloudFormation: ''
+  stackNameCF: ''
+  regionName:
+  templateParameters:
+  roleArn:
+  tags:
+
+steps:
+
+  # - script: |
+  #     BRANCH=`echo ${{ parameters.branch }} | cut -d "/" -f3`
+  #     BUILDFILENAME="${BRANCH}_build${{ parameters.zipBuildPrefix }}"
+  #     DEPLOYFILENAME="${BRANCH}_deploy${{ parameters.zipDeployPrefix }}"
+      
+  #     echo "##vso[task.setvariable variable=branch]$BRANCH"
+  #     echo "##vso[task.setvariable variable=deployFileName]$DEPLOYFILENAME"
+  #     echo "##vso[task.setvariable variable=buildFileName]$BUILDFILENAME"
+  #   displayName: 'Prepare strategy'
+
+  # - task: DownloadBuildArtifacts@0
+  #   displayName: 'Download build from Artifact'
+  #   inputs:
+  #     buildType: 'current'
+  #     downloadType: 'single'
+  #     artifactName: '$(branch)'
+  #     itemPattern: '**/$(buildFileName).zip'
+  #     downloadPath: "."
+
+  # - script: unzip ./$(branch)/$(buildFileName).zip
+  #   displayName: 'Unzip artifact'
+
+  # - task: AWSShellScript@1
+  #   condition: and(succeeded(), eq('${{ parameters.enabledCreateECR }}', 'true'))
+  #   displayName: Create ECR
+  #   inputs:
+  #     awsCredentials: ${{ parameters.awsCredentials }}
+  #     regionName: '$(REGION)'
+  #     scriptType: 'inline'
+  #     inlineScript: ${{ parameters.commandCreateECR }}
+
+  # - task: AWSShellScript@1
+  #   displayName: Docker login ECR
+  #   inputs:
+  #     awsCredentials: ${{ parameters.awsCredentials }}
+  #     regionName: '$(REGION)'
+  #     scriptType: 'inline'
+  #     inlineScript: ${{ parameters.dockerLoginECR }}
+
+  # - task: CmdLine@2
+  #   displayName: Docker Build
+  #   inputs:
+  #     script: ${{ parameters.dockerBuildECR }}
+
+  # - task: CmdLine@2
+  #   displayName: Docker Tag
+  #   inputs:
+  #     script: ${{ parameters.dockerTagECR }}
+
+  # - task: CmdLine@2
+  #   displayName: Docker Push
+  #   inputs:
+  #     script:  ${{ parameters.dockerPushECR }}
+
+  - checkout: git://Integracion-Corporativo/ms-integracion-corp@refs/heads/main
+
+  - ${{ if eq(parameters['enabledCloudformation'], 'true') }}:
+    - task: CloudFormationCreateOrUpdateStack@1
+      displayName: 'Create / Update Cloudformation'
+      inputs:
+        awsCredentials: ${{ parameters.awsCredentials }}
+        regionName: '${{ parameters.regionName }}'
+        stackName: '${{parameters.stackNameCF}}'
+        templateSource: 'file'
+        templateFile: '${{ parameters.fileCloudFormation }}'
+        templateParametersSource: 'inline'
+        logRequest: true
+        logResponse: true
+        captureStackOutputs: asJSON
+        templateParameters: ${{ parameters.templateParameters }}
+        roleARN: '${{ parameters.roleARN }}'
+        tags: ${{ parameters.tags }}
+
+  # - task: AWSShellScript@1
+  #   displayName: Update ECS
+  #   inputs:
+  #     awsCredentials: ${{ parameters.awsCredentials }}
+  #     regionName: '$(REGION)'
+  #     scriptType: 'inline'
+  #     inlineScript:  ${{ parameters.commandUpdateECS }}

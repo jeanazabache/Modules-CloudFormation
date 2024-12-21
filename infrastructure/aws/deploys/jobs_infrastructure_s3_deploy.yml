@@ -1,0 +1,66 @@
+parameters:
+  targetFolder: ''
+  jobEnvironment:
+  jobName:
+  awsCredentials:
+  fileCloudformation: 
+  regionName: 
+  stackNameCF:
+  s3BucketDeploy:
+  templateParameters:
+  roleARN:
+  tags:
+  capabilityAutoExpand: false
+  #Azure
+  azureSubscription:
+  keyVaultName:
+  #Email
+  emailEnabled: false
+  emailTo:
+  emailCC:
+  emailBCC:
+  emailFrom:
+  emailTitle:
+  #Tag
+  tagEnabled: false
+  tagRepository: none
+  tagName: 
+jobs:
+  - deployment: ${{ parameters.jobName }}
+    displayName: Deploy${{ parameters.jobEnvironment }}
+    environment: ${{parameters.jobEnvironment}}
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - template: infrastructure_s3_deploy.yml
+            parameters:
+              awsCredentials: ${{ parameters.awsCredentials}}
+              targetFolder: ${{ parameters.targetFolder}}
+              fileCloudformation: ${{ parameters.fileCloudformation}}
+              s3BucketDeploy: ${{ parameters.s3BucketDeploy }}
+              regionName: ${{ parameters.regionName}}
+              stackNameCF: ${{ parameters.stackNameCF}}
+              templateParameters: ${{ parameters.templateParameters}}
+              roleARN: ${{ parameters.roleARN}}
+              tags: ${{ parameters.tags}}
+              capabilityAutoExpand: ${{ parameters.capabilityAutoExpand}}
+
+  - template: /tools/jobs_common_tools.yml
+    parameters:
+      jobEnvironment: ${{ parameters.jobEnvironment }}
+      dependsOn: ${{ parameters.jobName }}
+      #Email - Azure
+      azureSubscription: ${{ parameters.azureSubscription }}
+      keyVaultName: ${{ parameters.keyVaultName }}
+      #Email
+      emailEnabled: ${{ parameters.emailEnabled }}
+      emailTo: ${{ parameters.emailTo }}
+      emailCC: ${{ parameters.emailCC }}
+      emailBCC: ${{ parameters.emailBCC }}
+      emailFrom: ${{ parameters.emailFrom }}
+      emailTitle: ${{ parameters.emailTitle }}
+      #Tag
+      tagEnabled: ${{ parameters.tagEnabled }}
+      tagRepository: ${{ parameters.tagRepository }}
+      tagName: ${{ parameters.tagName }}

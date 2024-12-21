@@ -1,0 +1,20 @@
+parameters:
+
+- name: repository
+  type: string
+- name: tag_name
+  type: string
+
+steps:
+
+- checkout: ${{parameters.repository}}
+  clean: true
+  persistCredentials: true
+
+- script: |
+    git tag ${{ parameters.tag_name }}-$(Build.BuildNumber)
+  displayName: Create new tag ${{ parameters.tag_name }}-$(Build.BuildNumber)
+
+- script: |
+    git push origin tag ${{ parameters.tag_name }}-$(Build.BuildNumber)
+  displayName: Push tag ${{ parameters.tag_name }}-$(Build.BuildNumber)

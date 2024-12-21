@@ -1,0 +1,60 @@
+parameters:
+  versionSpec: "14.x"
+  branch: ""
+  zipBuildPrefix: ""
+  buildCommand: ""
+  skypBuildArtifact: '*/\.* *.git* *azure-pipelines.yml*'
+  taskCustomIsEnabled: false
+  taskCustom: ""
+  addCache: true
+steps:
+  - task: NodeTool@0
+    displayName: "Install Node.js"
+    inputs:
+      versionSpec: ${{ parameters.versionSpec }}
+
+  - script: |
+      BRANCH=`echo ${{ parameters.branch }} | cut -d "/" -f3`
+      BUILDFILENAME="${BRANCH}_build${{ parameters.zipBuildPrefix }}"
+
+      PACKAGELOCK=$(System.DefaultWorkingDirectory)/package-lock.json
+      PACKAGE=$(System.DefaultWorkingDirectory)/package.json
+      PACKAGE_LOCK_EXISTS=false
+      PACKAGE_EXISTS=false
+      if test -f "$PACKAGELOCK"; then
+        PACKAGE_LOCK_EXISTS=true
+      fi
+      if test -f "$PACKAGE"; then
+        PACKAGE_EXISTS=true
+      fi
+      echo "##vso[task.setvariable variable=branch]$BRANCH"
+      echo "##vso[task.setvariable variable=buildFileName]$BUILDFILENAME"
+      echo "##vso[task.setvariable variable=packageLogExists]$PACKAGE_LOCK_EXISTS"
+      echo "##vso[task.setvariable variable=packageExists]$PACKAGE_EXISTS"
+    displayName: "Prepare strategy"
+
+  - ${{ if eq(parameters['taskCustomIsEnabled'], 'true') }}:
+      - ${{ parameters.taskCustom }}
+
+  - task: Cache@2
+    condition: and(succeeded(), eq(variables.packageLogExists, 'true'), eq('${{ parameters.addCache }}', 'true'))
+    inputs:
+      key: 'npm | "$(Agent.OS)" | package-lock.json'
+      restoreKeys: |
+        npm | "$(Agent.OS)"
+      path: $(System.DefaultWorkingDirectory)/node_modules
+    displayName: Cache node_modules
+
+  - script: ${{ parameters.buildCommand }}
+    condition: and(succeeded(), eq(variables.packageExists, 'true'))
+    displayName: "npm install and build"
+
+  - script: |
+      zip -rq $(buildFileName).zip . -x ${{parameters.skypBuildArtifact}}
+    displayName: 'Generate "zip" of the build'
+
+  - task: PublishBuildArtifacts@1
+    displayName: 'Publish "zip" in Artifact'
+    inputs:
+      pathToPublish: "$(buildFileName).zip"
+      artifactName: "$(branch)"

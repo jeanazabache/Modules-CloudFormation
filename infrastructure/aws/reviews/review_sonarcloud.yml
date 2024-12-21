@@ -1,0 +1,38 @@
+parameters:
+  branch:
+  zipBuildPrefix: ''
+  #SonarCloud
+  extraProperties:
+  sonarCloud:
+  sonarCloudToken:
+  organization:
+  cliProjectKey:
+  cliProjectName:
+  firstUploadSonarCloud: false
+steps:
+
+  - script: |
+      BRANCH=`echo ${{ parameters.branch }} | cut -d "/" -f3`
+      echo "##vso[task.setvariable variable=branch]$BRANCH"
+    displayName: 'Prepare strategy'
+
+  # Preparar y analizar sonarcloud
+  - template: /sonarcloud/scanners/sonarcloud_cli.yml@InfraestructuraCorporativa
+    parameters:
+      scannerMode: 'CLI'
+      configMode: 'manual'
+      extraProperties: '${{ parameters.extraProperties }}'
+      sonarCloud: '${{ parameters.sonarCloud }}'
+      organization: '${{ parameters.organization }}'
+      cliProjectKey: '${{ parameters.cliProjectKey }}'
+      cliProjectName: '${{ parameters.cliProjectName }}'
+      sonarCloudBranch: '$(branch)'
+      firstUploadSonarCloud: '${{ parameters.firstUploadSonarCloud }}'
+
+  # Evaluación sonarcloud
+  - template: /sonarcloud/apis/sonarcloud_status.yml@InfraestructuraCorporativa
+    parameters:
+      sonarCloudBranch: '$(branch)'
+      sonarCloudToken: '${{ parameters.sonarCloudToken }}'
+      cliProjectKey: '${{ parameters.cliProjectKey }}'
+

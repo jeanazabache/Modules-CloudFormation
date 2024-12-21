@@ -1,0 +1,109 @@
+parameters:
+  branch:
+  buildConfiguration: 'Release'
+  publishProject: '*.csproj'
+  zipBuildPrefix: ''
+  #Parameters to deploy s3
+  deployS3: true
+  awsCredentials:
+  regionName:
+  functionName:
+  functionNameIsLowerCase: false
+  s3BucketName:
+  functionSecurityGroups:
+  functionSubnets:
+  functionDescription:
+  functionHandler:
+  functionRuntime:
+  functionMemorySize:
+  functionTimeout:
+  functionRoleARN:
+  functionEnvironments:
+  tags:
+
+steps:
+
+  - script: |
+      BRANCH=`echo ${{ parameters.branch }} | cut -d "/" -f3`
+      FUNCTION_NAME="${{ parameters.functionName }}"
+      BUCKET=`echo "${{ parameters.s3BucketName }}" | awk '{ print tolower($0); }'`
+
+      BUILDFILENAME="${BRANCH}_build${{ parameters.zipBuildPrefix }}"
+      DEPLOYFILENAME="${BRANCH}_deploy${{ parameters.zipDeployPrefix }}"
+
+      if [[ "${{ parameters.functionNameIsLowerCase }}" == "true" ]]; then 
+        FUNCTION_NAME=`echo "${{ parameters.functionName }}" | awk '{ print tolower($0); }'`
+      fi
+      BID=builds/$FUNCTION_NAME/$(Build.BuildNumber).zip
+
+      echo "##vso[task.setvariable variable=branch]$BRANCH"
+      echo "##vso[task.setvariable variable=buildFileName]$BUILDFILENAME"
+      echo "##vso[task.setvariable variable=deployFileName]$DEPLOYFILENAME"
+      echo "##vso[task.setvariable variable=s3Bucket]$BUCKET"
+      echo "##vso[task.setvariable variable=functionNameBuild]$FUNCTION_NAME"
+      echo "##vso[task.setvariable variable=s3ObjectKey]$BID"
+
+    displayName: 'Prepare strategy'
+
+  - task: DownloadBuildArtifacts@0
+    displayName: 'Download "build" from Artifact'
+    inputs:
+      buildType: 'current'
+      downloadType: 'single'
+      artifactName: '$(branch)'
+      itemPattern: '**/$(buildFileName).zip'
+      downloadPath: .
+      
+  - script: | 
+      unzip ./$(branch)/$(buildFileName).zip -d .
+      rm -rf ./$(branch)
+    displayName: 'Unzip build of artifact'
+
+  - task: DotNetCoreCLI@2
+    displayName: 'Dotnet publish ${{parameters.buildConfiguration}}'
+    inputs:
+      command: 'publish'
+      publishWebProjects: false
+      projects: '${{parameters.publishProject}}'
+      arguments: '-c ${{parameters.buildConfiguration}} -o $(Build.ArtifactStagingDirectory)'
+      zipAfterPublish: true
+
+  - script: mv $(Build.ArtifactStagingDirectory)/*.zip ./$(deployFileName).zip
+    displayName: 'Move and rename build zip'
+
+  - task: PublishBuildArtifacts@1
+    displayName: 'Publish "zip" in Artifact'
+    inputs: 
+      pathToPublish: '$(deployFileName).zip'
+      artifactName: '$(branch)'
+      
+  - task: AWSCLI@1
+    condition: and(succeeded(), eq('${{ parameters.deployS3 }}', 'true'))
+    displayName: 'Move files to S3'
+    inputs:
+      awsCredentials: ${{ parameters.awsCredentials }}
+      regionName: ${{ parameters.regionName }}
+      awsCommand: 's3'
+      awsSubCommand: 'mv'
+      awsArguments: '--quiet $(deployFileName).zip s3://$(s3Bucket)/$(s3ObjectKey)'
+
+  - task: LambdaDeployFunction@1
+    displayName: 'Lambda deployment to aws'
+    inputs:
+      awsCredentials: ${{ parameters.awsCredentials }}
+      description: '${{ parameters.functionDescription }}'
+      regionName: '${{ parameters.regionName }}'
+      deploymentMode: 'codeandconfiguration'
+      functionName: $(functionNameBuild)
+      functionHandler: '${{ parameters.functionHandler }}'
+      runtime: '${{ parameters.functionRuntime }}'
+      codeLocation: 's3object'
+      s3Bucket: '$(s3Bucket)'
+      s3ObjectKey: '$(s3ObjectKey)'
+      roleARN: '${{ parameters.functionRoleARN }}'
+      memorySize: '${{ parameters.functionMemorySize }}'
+      timeout: '${{ parameters.functionTimeout }}'
+      environment: '${{ parameters.functionEnvironments }}'
+      subnets: ${{ parameters.functionSubnets }}
+      securityGroups: ${{ parameters.functionSecurityGroups }}
+      tags: ${{ parameters.tags }}

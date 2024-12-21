@@ -1,0 +1,56 @@
+parameters:
+  awsCredentials: ''
+  fileCloudFormation: ''
+  stackNameCF: ''
+  regionName:
+  templateParameters:
+  roleArn:
+  tags:
+steps:
+          
+- task: CloudFormationCreateOrUpdateStack@1
+  displayName: 'Create / Update Cloudformation'
+  inputs:
+    awsCredentials: ${{ parameters.awsCredentials }}
+    regionName: '${{ parameters.regionName }}'
+    stackName: '${{parameters.stackNameCF}}'
+    templateSource: 'file'
+    templateFile: '${{ parameters.fileCloudFormation }}'
+    templateParametersSource: 'inline'
+    logRequest: true
+    logResponse: true
+    captureStackOutputs: asJSON
+    templateParameters: ${{ parameters.templateParameters }}
+    roleARN: '${{ parameters.roleARN }}'
+    tags: ${{ parameters.tags }}
+      
+
+# - task: AWSCLI@1
+#   displayName: 'Set output log from $(stackNameCF)'
+#   condition: succeededOrFailed()
+#   inputs:
+#     awsCredentials: ${{ parameters.awsCredentials }}
+#     regionName: '$(REGION)'
+#     awsCommand: 'cloudformation'
+#     awsSubCommand: 'describe-stack-events'
+#     awsArguments: '--stack-name $(stackNameCF) --max-items 100'
+
+# - task: AWSCLI@1
+#   displayName: 'Output Cloudformation'
+#   inputs:
+#     awsCredentials: ${{ parameters.awsCredentials }}
+#     regionName: '$(REGION)'
+#     awsCommand: 'cloudformation'
+#     awsSubCommand: 'describe-stacks'
+#     awsArguments: '--stack-name $(stackNameCF) --query "Stacks[0].Outputs" --output json'
+
+
+# - task: AWSShellScript@1
+#   inputs:
+#     awsCredentials: ${{ parameters.awsCredentials }}
+#     regionName: '$(REGION)'
+#     scriptType: 'inline'
+#     inlineScript: |
+#       aws cloudformation describe-stack-events --stack-name $(stackNameCF) --max-items 50 > LOG_$(stackNameCF).json
+#       jq '-StackEvents[] | select(.ResourceStatus="CREATE_FAILED" or .ResourceStatus="UPDATE_FAILED")' LOG_$(stackNameCF).json
+#   displayName: 'Set output about error log from $(stackNameCF)'

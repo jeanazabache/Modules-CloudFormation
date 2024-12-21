@@ -1,0 +1,73 @@
+parameters:
+  branch: ''
+  versionSpec: '14.x'
+  zipBuildPrefix: ''
+  buildCommand: ''
+  replaceEnvIsEnabled: false
+  postReplaceEnv: false
+  postReplaceEnvCommand: ''
+  targetFiles: ''
+  cacheEnabled: true
+
+steps:
+  - task: NodeTool@0
+    displayName: 'Install Node.js'
+    inputs:
+      versionSpec: ${{ parameters.versionSpec }}
+ 
+  - script: |
+      BRANCH=`echo ${{ parameters.branch }} | cut -d "/" -f3`
+      BUILDFILENAME="${BRANCH}_build${{ parameters.zipBuildPrefix }}"
+      
+      PACKAGELOCK=$(System.DefaultWorkingDirectory)/package-lock.json
+      PACKAGE_LOCK_EXISTS=false
+      if test -f "$PACKAGELOCK"; then
+        PACKAGE_LOCK_EXISTS=true
+      fi
+
+      echo "##vso[task.setvariable variable=branch]$BRANCH"
+      echo "##vso[task.setvariable variable=buildFileName]$BUILDFILENAME"
+      echo "##vso[task.setvariable variable=packageLogExists]$PACKAGE_LOCK_EXISTS"
+    displayName: 'Prepare strategy'
+
+  - ${{ if eq(parameters['replaceEnvIsEnabled'], 'true') }}:
+      - task: replacetokens@3
+        condition: and(succeeded(), eq('${{ parameters.replaceEnvIsEnabled }}', 'true'))
+        displayName: "Replacement value of enviroment"
+        inputs:
+          targetFiles: "${{ parameters.targetFiles }}"
+          encoding: "auto"
+          writeBOM: true
+          verbosity: "detailed"
+          actionOnMissing: "warn"
+          keepToken: false
+          tokenPrefix: "###{"
+          tokenSuffix: "}###"
+          useLegacyPattern: false
+          enableTelemetry: true
+
+  - ${{ if eq(parameters['postReplaceEnv'], 'true') }}:
+      - ${{ parameters.postReplaceEnvCommand }}
+
+  - ${{ if eq(parameters['cacheEnabled'], 'true') }}:
+      - task: Cache@2
+        condition: and(succeeded(), eq(variables.packageLogExists, 'true'))
+        inputs:
+          key: 'npm | "$(Agent.OS)" | package-lock.json'
+          restoreKeys: |
+            npm | "$(Agent.OS)"
+          path: $(System.DefaultWorkingDirectory)/node_modules
+        displayName: Cache node_modules
+
+  - script: ${{ parameters.buildCommand }}
+    displayName: 'npm install and build'
+
+  - script: |
+      zip -rq $(buildFileName).zip .
+    displayName: 'Generate "zip" of the build'
+
+  - task: PublishBuildArtifacts@1
+    displayName: 'Publish "zip" in Artifact'
+    inputs: 
+      pathToPublish: '$(buildFileName).zip'
+      artifactName: '$(branch)'
